@@ -1,13 +1,162 @@
 import React, { useState } from 'react';
 import moment from 'moment';
 import SyllabusParser from './SyllabusParser';
+import GoogleCalendarIntegration from './GoogleCalendarIntegration';
 import './App.css';
 
+// SuggestionsButton Component - MOVED OUTSIDE APP
+const SuggestionsButton = ({ onSuggestionsAdd, events }) => {
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const suggestedActivities = [
+    {
+      title: 'Grocery Shopping',
+      duration: 60,
+      color: '#34c759',
+      description: 'Weekly grocery run',
+      frequency: 'weekly',
+      preferredTime: 'weekend_morning'
+    },
+    {
+      title: 'Lunch Break',
+      duration: 45,
+      color: '#ff9500',
+      description: 'Daily lunch break',
+      frequency: 'daily',
+      preferredTime: 'lunch'
+    },
+  ];
+
+  const handleAddSuggestions = () => {
+    const today = moment().startOf('day');
+    const suggestedEvents = [];
+    
+    suggestedActivities.forEach((activity) => {
+      for (let i = 0; i < 14; i++) {
+        const eventDate = today.clone().add(i, 'days');
+        
+        let hour = 12;
+        if (activity.preferredTime === 'weekend_morning') {
+          hour = 10;
+        } else if (activity.preferredTime === 'lunch') {
+          hour = 12;
+        }
+        
+        if (activity.frequency === 'daily' || 
+            (activity.frequency === 'weekly' && (eventDate.day() === 6 || eventDate.day() === 0))) {
+          
+          const eventStart = eventDate.clone().hour(hour).minute(0);
+          
+          const hasConflict = events.some(existingEvent => {
+            const existingStart = moment(existingEvent.date);
+            const existingEnd = existingStart.clone().add(existingEvent.duration, 'minutes');
+            const suggestedEnd = eventStart.clone().add(activity.duration, 'minutes');
+            
+            return eventStart.isBetween(existingStart, existingEnd, null, '[)') ||
+                   existingStart.isBetween(eventStart, suggestedEnd, null, '[)');
+          });
+          
+          if (!hasConflict) {
+            suggestedEvents.push({
+              title: activity.title,
+              date: eventStart,
+              duration: activity.duration,
+              color: activity.color,
+              description: activity.description
+            });
+          }
+        }
+      }
+    });
+    
+    onSuggestionsAdd(suggestedEvents);
+    setShowSuggestions(false);
+  };
+
+  return (
+    <>
+      <button 
+        className="suggestions-btn"
+        onClick={() => setShowSuggestions(true)}
+      >
+        💡 Get Suggestions
+      </button>
+
+      {showSuggestions && (
+        <div className="modal-overlay" onClick={() => setShowSuggestions(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Smart Schedule Suggestions</h3>
+              <button 
+                className="close-btn"
+                onClick={() => setShowSuggestions(false)}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="event-form">
+              <div className="form-group">
+                <p>We'll add these helpful activities to your calendar for the next 2 weeks:</p>
+                
+                <div className="suggestions-list">
+                  {suggestedActivities.map((activity, index) => (
+                    <div key={index} className="suggestion-item">
+                      <div 
+                        className="suggestion-color"
+                        style={{ backgroundColor: activity.color }}
+                      ></div>
+                      <div className="suggestion-details">
+                        <strong>{activity.title}</strong>
+                        <span>{activity.duration} min • {activity.frequency}</span>
+                        <small>{activity.description}</small>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="form-info">
+                  <h4>How it works:</h4>
+                  <ul>
+                    <li>Activities are spaced throughout your available time</li>
+                    <li>We avoid overlapping with existing events</li>
+                    <li>You can edit or remove any suggestions</li>
+                    <li>Perfect for maintaining work-life balance</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="form-actions">
+                <button 
+                  type="button" 
+                  className="cancel-btn"
+                  onClick={() => setShowSuggestions(false)}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="button" 
+                  className="save-btn"
+                  onClick={handleAddSuggestions}
+                >
+                  Add {suggestedActivities.length} Suggestions
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+// Main App Component
 function App() {
   const [currentWeek, setCurrentWeek] = useState(moment());
   const [showEventForm, setShowEventForm] = useState(false);
   const [showClassForm, setShowClassForm] = useState(false);
   const [showSyllabusParser, setShowSyllabusParser] = useState(false);
+  const [showGoogleIntegration, setShowGoogleIntegration] = useState(false);
   const [newEvent, setNewEvent] = useState({
     title: '',
     date: moment(),
@@ -23,13 +172,47 @@ function App() {
     { id: 4, title: 'Dentist Appointment', date: moment().add(5, 'day').hour(11).minute(0), duration: 30, color: '#af52de', description: 'Regular checkup' },
   ]);
 
-  // Add this function to handle parsed events
+  // Handle parsed events from syllabus
   const handleEventsParsed = (newEvents) => {
     const eventsWithIds = newEvents.map((event, index) => ({
       ...event,
       id: events.length + index + 1
     }));
     setEvents([...events, ...eventsWithIds]);
+  };
+
+  // Handle Google Calendar events
+  const handleGoogleEventsSynced = (googleEvents) => {
+    const eventsWithIds = googleEvents.map((event, index) => ({
+      ...event,
+      id: events.length + index + 1
+    }));
+    setEvents([...events, ...eventsWithIds]);
+  };
+
+  // Handle adding suggested events
+  const handleSuggestionsAdd = (suggestedEvents) => {
+    const nonConflictingEvents = suggestedEvents.filter(suggestedEvent => {
+      const suggestedStart = moment(suggestedEvent.date);
+      const suggestedEnd = suggestedStart.clone().add(suggestedEvent.duration, 'minutes');
+      
+      const hasConflict = events.some(existingEvent => {
+        const existingStart = moment(existingEvent.date);
+        const existingEnd = existingStart.clone().add(existingEvent.duration, 'minutes');
+        
+        return suggestedStart.isBefore(existingEnd) && suggestedEnd.isAfter(existingStart);
+      });
+      
+      return !hasConflict;
+    });
+
+    const eventsWithIds = nonConflictingEvents.map((event, index) => ({
+      ...event,
+      id: events.length + index + 1
+    }));
+    
+    setEvents([...events, ...eventsWithIds]);
+    alert(`Added ${nonConflictingEvents.length} suggested activities to your calendar!`);
   };
 
   // Generate week days
@@ -55,7 +238,7 @@ function App() {
     };
   });
 
-  // Navigation
+  // Navigation functions
   const goToPreviousWeek = () => {
     setCurrentWeek(currentWeek.clone().subtract(1, 'week'));
   };
@@ -93,13 +276,17 @@ function App() {
     };
   };
 
-  // Get upcoming events
+  // Get upcoming events - FIXED VERSION
   const getUpcomingEvents = () => {
-    const today = moment().startOf('day');
-    const nextWeek = today.clone().add(7, 'days');
+    const now = moment();
+    const nextWeek = now.clone().add(7, 'days');
     
     return events
-      .filter(event => moment(event.date).isSameOrAfter(today) && moment(event.date).isBefore(nextWeek))
+      .filter(event => {
+        const eventMoment = moment(event.date);
+        return eventMoment.isSameOrAfter(now, 'day') && 
+               eventMoment.isBefore(nextWeek, 'day');
+      })
       .sort((a, b) => moment(a.date) - moment(b.date))
       .slice(0, 10);
   };
@@ -136,7 +323,7 @@ function App() {
     }));
   };
 
-  // Handle date change separately
+  // Handle date change
   const handleDateChange = (e) => {
     const newDate = moment(e.target.value);
     setNewEvent(prev => ({
@@ -202,10 +389,8 @@ function App() {
   // Handle class schedule file upload
   const handleClassFileUpload = (e) => {
     e.preventDefault();
-    // Simulate file processing - in real app, this would read the file
-    alert('Class schedule file would be processed here! This would extract dates and add classes to the calendar.');
+    alert('Class schedule file would be processed here!');
     
-    // Simulate adding sample classes from file
     const sampleClasses = [
       {
         id: events.length + 1,
@@ -223,14 +408,6 @@ function App() {
         color: '#af52de',
         description: 'Data Structures'
       },
-      {
-        id: events.length + 3,
-        title: 'Physics Lab',
-        date: moment().add(5, 'day').hour(14).minute(0),
-        duration: 180,
-        color: '#007aff',
-        description: 'Lab Session'
-      }
     ];
     
     setEvents([...events, ...sampleClasses]);
@@ -273,10 +450,28 @@ function App() {
             </button>
             <button 
               className="add-class-btn"
-              onClick={() => setShowClassForm(true)}
+              onClick={() => setShowSyllabusParser(true)}
             >
-              + Add Class
+              + Import from Syllabus
             </button>
+            <button 
+              className="google-calendar-btn"
+              onClick={() => setShowGoogleIntegration(true)}
+              style={{
+                background: '#4285f4',
+                color: 'white',
+                border: 'none',
+                padding: '6px 12px',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                marginLeft: '10px',
+                fontSize: '12px',
+                fontWeight: '500'
+              }}
+            >
+              📅 Google Calendar
+            </button>
+            <SuggestionsButton onSuggestionsAdd={handleSuggestionsAdd} events={events} />
           </div>
           
           <div className="week-navigation">
@@ -323,7 +518,6 @@ function App() {
                   className="time-slot"
                   onClick={() => quickAddEvent(day, timeSlot.hour)}
                   onDoubleClick={() => openEventForm(day, timeSlot.hour)}
-                  title="Click to quick add, double-click for details"
                 >
                   {getEventsForDay(day)
                     .filter(event => {
@@ -354,7 +548,7 @@ function App() {
         </div>
       </div>
 
-      {/* Right Side - Upcoming Events */}
+      {/* Right Side - Upcoming Events - FIXED */}
       <div className="events-side">
         <div className="events-header">
           <h3>Upcoming Events</h3>
@@ -362,49 +556,54 @@ function App() {
         </div>
 
         <div className="events-list">
-          {Object.entries(eventsByDay).map(([date, dayEvents]) => {
-            const dayMoment = moment(date);
-            let dayLabel = '';
-            
-            if (dayMoment.isSame(moment(), 'day')) {
-              dayLabel = 'Today';
-            } else if (dayMoment.isSame(moment().add(1, 'day'), 'day')) {
-              dayLabel = 'Tomorrow';
-            } else {
-              dayLabel = dayMoment.format('dddd');
-            }
+          {Object.entries(eventsByDay)
+            .sort(([dateA], [dateB]) => new Date(dateA) - new Date(dateB))
+            .map(([date, dayEvents]) => {
+              const dayMoment = moment(date);
+              let dayLabel = '';
+              
+              if (dayMoment.isSame(moment(), 'day')) {
+                dayLabel = 'Today';
+              } else if (dayMoment.isSame(moment().add(1, 'day'), 'day')) {
+                dayLabel = 'Tomorrow';
+              } else {
+                dayLabel = dayMoment.format('dddd');
+              }
 
-            return (
-              <div key={date} className="day-events">
-                <div className="day-label">
-                  {dayLabel}
-                  <span className="date-label">{dayMoment.format('MMM D')}</span>
-                </div>
-                {dayEvents.map(event => (
-                  <div 
-                    key={event.id} 
-                    className="upcoming-event"
-                    onClick={() => editEvent(event)}
-                    style={{cursor: 'pointer'}}
-                  >
-                    <div 
-                      className="event-color" 
-                      style={{ backgroundColor: event.color }}
-                    ></div>
-                    <div className="event-details">
-                      <div className="event-title">{event.title}</div>
-                      <div className="event-time">
-                        {moment(event.date).format('h:mm A')} • {event.duration}min
-                      </div>
-                      {event.description && (
-                        <div className="event-description">{event.description}</div>
-                      )}
-                    </div>
+              return (
+                <div key={date} className="day-events">
+                  <div className="day-label">
+                    {dayLabel}
+                    <span className="date-label">{dayMoment.format('MMM D')}</span>
                   </div>
-                ))}
-              </div>
-            );
-          })}
+                  {dayEvents
+                    .sort((a, b) => moment(a.date) - moment(b.date))
+                    .map(event => (
+                      <div 
+                        key={event.id} 
+                        className="upcoming-event"
+                        onClick={() => editEvent(event)}
+                        style={{cursor: 'pointer'}}
+                      >
+                        <div 
+                          className="event-color" 
+                          style={{ backgroundColor: event.color }}
+                        ></div>
+                        <div className="event-details">
+                          <div className="event-title">{event.title}</div>
+                          <div className="event-time">
+                            {moment(event.date).format('h:mm A')} • {event.duration}min
+                          </div>
+                          {event.description && (
+                            <div className="event-description">{event.description}</div>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  }
+                </div>
+              );
+            })}
 
           {upcomingEvents.length === 0 && (
             <div className="no-events">
@@ -528,91 +727,25 @@ function App() {
         </div>
       )}
 
-      {/* Add Class Modal */}
-      {showClassForm && (
-        <div className="modal-overlay" onClick={() => setShowClassForm(false)}>
+      {/* Syllabus Parser Modal */}
+      {showSyllabusParser && (
+  <SyllabusParser 
+    onEventsParsed={handleEventsParsed}
+    onClose={() => setShowSyllabusParser(false)}
+  />
+)}
+{showGoogleIntegration && (
+        <div className="modal-overlay" onClick={() => setShowGoogleIntegration(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Add Class Schedule</h3>
-              <button 
-                className="close-btn"
-                onClick={() => setShowClassForm(false)}
-              >
-                ×
-              </button>
+              <h3>Google Calendar Integration</h3>
+              <button className="close-btn" onClick={() => setShowGoogleIntegration(false)}>×</button>
             </div>
-
-            {showSyllabusParser && (
-        <SyllabusParser 
-          onEventsParsed={handleEventsParsed}
-          onClose={() => setShowSyllabusParser(false)}
-        />
-      )}
-
-            <form onSubmit={handleClassFileUpload} className="event-form">
-              <div className="form-group">
-                <label>Upload Class Schedule File</label>
-                <div className="file-upload-area">
-                  <div className="file-upload-icon">📁</div>
-                  <p>Drop your class schedule file here or click to browse</p>
-                  <input
-                    type="file"
-                    accept=".csv,.xlsx,.pdf,.txt"
-                    className="file-input"
-                    onChange={(e) => {
-                      // File would be processed here
-                      console.log('File selected:', e.target.files[0]);
-                    }}
-                  />
-                  <small>Supported formats: CSV, Excel, PDF, Text</small>
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label>File Type</label>
-                <select className="file-type-select">
-                  <option value="csv">CSV File</option>
-                  <option value="excel">Excel Spreadsheet</option>
-                  <option value="pdf">PDF Document</option>
-                  <option value="text">Text File</option>
-                  <option value="auto">Auto-detect</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>Semester/Quarter</label>
-                <select className="semester-select">
-                  <option value="fall2024">Fall 2024</option>
-                  <option value="spring2024">Spring 2024</option>
-                  <option value="summer2024">Summer 2024</option>
-                  <option value="fall2023">Fall 2023</option>
-                  <option value="custom">Custom Date Range</option>
-                </select>
-              </div>
-
-              <div className="form-info">
-                <h4>How it works:</h4>
-                <ul>
-                  <li>Upload your class schedule file</li>
-                  <li>We'll extract class times and dates automatically</li>
-                  <li>Classes will be added to your calendar</li>
-                  <li>You can edit or remove classes anytime</li>
-                </ul>
-              </div>
-
-              <div className="form-actions">
-                <button 
-                  type="button" 
-                  className="cancel-btn"
-                  onClick={() => setShowClassForm(false)}
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="save-btn">
-                  Process Schedule
-                </button>
-              </div>
-            </form>
+            
+            <GoogleCalendarIntegration 
+              events={events}
+              onEventsSynced={handleGoogleEventsSynced}
+            />
           </div>
         </div>
       )}
