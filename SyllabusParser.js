@@ -115,14 +115,20 @@ const SyllabusParser = ({ onEventsParsed, onClose }) => {
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        setSyllabusText(e.target.result);
+        const text = e.target.result;
+        setSyllabusText(text);
+        
+        // AUTO-PARSE after file upload
+        setTimeout(() => {
+          const events = parseSyllabus(text);
+          setParsedEvents(events);
+        }, 100);
       };
       reader.readAsText(file);
     }
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3>Import Class Schedule from Syllabus</h3>
@@ -160,6 +166,26 @@ const SyllabusParser = ({ onEventsParsed, onClose }) => {
             >
               Parse Syllabus
             </button>
+            <button 
+    onClick={() => {
+      const demoText = `CMPE 306 Introductory Circuit Theory
+
+Fall 2025 Lecture: M, W 1:00 – 2:15 pm Lab: Tu 1:00 pm – 2:50 pm
+
+Week 1 (8/27) Chapter 1
+Week 7 (10/06) midterm exam 1
+Week 12 (11/10) midterm exam 2
+Week 17 (12/17) final exam`;
+
+      setSyllabusText(demoText);
+      const events = parseSyllabus(demoText);
+      setParsedEvents(events);
+    }}
+    className="save-btn"
+    style={{ marginLeft: '10px', backgroundColor: '#af52de' }}
+  >
+    Load Demo Syllabus
+  </button>
           </div>
 
           {parsedEvents.length > 0 && (
@@ -204,7 +230,6 @@ const SyllabusParser = ({ onEventsParsed, onClose }) => {
           </div>
         </div>
       </div>
-    </div>
   );
 };
 
