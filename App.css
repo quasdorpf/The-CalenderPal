@@ -592,15 +592,6 @@ body {
   color: #666;
 }
 
-/* Syllabus Parser Styles */
-.file-input {
-  width: 100%;
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  margin-bottom: 10px;
-}
-
 .form-info {
   background: #f8f9fa;
   padding: 15px;
@@ -622,4 +613,168 @@ body {
   margin-bottom: 5px;
   font-size: 13px;
   color: #666;
+}
+
+/* Suggestions Button Styles */
+.suggestions-btn {
+  padding: 6px 12px;
+  background: #ff9500 !important;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  margin-left: 10px;
+}
+
+.suggestions-btn:hover {
+  background: #e08500 !important;
+}
+
+.suggestions-list {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.suggestion-item {
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  margin-bottom: 8px;
+  background: #f8f9fa;
+  border-radius: 4px;
+}
+
+.suggestion-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  margin-right: 10px;
+}
+
+.suggestion-details {
+  flex: 1;
+}
+
+.suggestion-details strong {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 2px;
+}
+
+.suggestion-details span {
+  font-size: 11px;
+  color: #666;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.suggestion-details small {
+  font-size: 10px;
+  color: #999;
+  font-style: italic;
+}
+
+/* Suggested event style in calendar */
+.calendar-event.suggested {
+  opacity: 0.9;
+  border-left: 3px solid #ff9500;
+}
+
+.file-input {
+  width: 100%;
+  padding: 10px;
+  margin: 10px 0;
+  border: 2px dashed #ddd;
+  border-radius: 8px;
+  background: #f9f9f9;
+  cursor: pointer;
+  position: relative; /* Remove absolute positioning */
+  opacity: 1; /* Make it visible */
+  height: auto; /* Remove full height */
+}
+
+.file-input:focus {
+  outline: none;
+  border-color: #007aff;
+}
+
+/* Keep this but make sure it's specific to upload areas */
+.file-upload-area .file-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* Make sure regular file inputs (not in upload areas) are visible */
+.file-input:not(.file-upload-area .file-input) {
+  position: relative;
+  opacity: 1;
+  height: auto;
+}
+
+/* Google Calendar Integration Styles */
+.google-integration {
+  padding: 20px;
+}
+
+.sync-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sync-btn {
+  padding: 10px 15px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.sync-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.google-login-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 20px;
+  background: #4285f4;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.google-login-btn:hover {
+  background: #3367d6;
+}
+
+.setup-instructions {
+  border-left: 4px solid #4285f4;
+}
+
+.setup-instructions ol {
+  margin: 10px 0;
+  padding-left: 20px;
+}
+
+.setup-instructions li {
+  margin-bottom: 5px;
 }
